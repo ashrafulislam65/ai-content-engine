@@ -1,0 +1,91 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TopicSource {
+  GOOGLE_TRENDS
+  REDDIT
+  HACKER_NEWS
+  MANUAL
+}
+
+enum TopicStatus {
+  PENDING
+  IN_PROGRESS
+  USED
+  REJECTED
+}
+
+enum VideoStatus {
+  QUEUED
+  SCRIPTING
+  VOICING
+  FETCHING_ASSETS
+  RENDERING
+  READY_FOR_REVIEW
+  APPROVED
+  REJECTED
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+model Topic {
+  id        String      @id @default(cuid())
+  title     String
+  source    TopicSource
+  sourceUrl String?
+  score     Int         @default(0)
+  status    TopicStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+  videos    Video[]
+
+  @@unique([title, source])
+  @@index([status, score])
+}
+
+model Video {
+  id               String      @id @default(cuid())
+  topicId          String
+  topic            Topic       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  status           VideoStatus @default(QUEUED)
+  title            String?
+  scriptText       String?
+  visualKeywords   String[]
+  audioPath        String?
+  audioDurationSec Float?
+  subtitlePath     String?
+  videoPath        String?
+  failedStage      VideoStatus?
+  errorMessage     String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  logs             PipelineLog[]
+
+  @@index([status])
+}
+
+model PipelineLog {
+  id         String   @id @default(cuid())
+  videoId    String?
+  video      Video?   @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  stage      String
+  level      LogLevel @default(INFO)
+  message    String
+  durationMs Int?
+  createdAt  DateTime @default(now())
+
+  @@index([videoId])
+  @@index([createdAt])
+}
