@@ -1,4 +1,5 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
+import { ZodError } from "zod";
 import { logger } from "../lib/logger";
 
 export class AppError extends Error {
@@ -15,6 +16,11 @@ export const notFound: RequestHandler = (req, res) => {
 };
 
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  if (err instanceof ZodError) {
+    res.status(400).json({ error: "Validation failed", details: err.issues });
+    return;
+  }
+
   const statusCode = err instanceof AppError ? err.statusCode : 500;
 
   if (statusCode >= 500) {
