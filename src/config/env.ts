@@ -23,6 +23,9 @@ const schema = z.object({
       "groq:openai/gpt-oss-120b,gemini:gemini-3.1-flash-lite,groq:qwen/qwen3.8-27b,gemini:gemini-3-flash-preview"
     ),
     LLM_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+  STORAGE_DIR: z.string().default("storage"),
+  TTS_VOICE: z.string().default("en-US-AndrewNeural"),
+  TTS_RATE: z.string().default("+0%"),
     PEXELS_API_KEY: z.string().optional(),
 });
 
