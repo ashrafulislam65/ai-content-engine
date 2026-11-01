@@ -1,17 +1,4 @@
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: content_engine_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: content_engine
-    ports:
-      - "5433:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
   redis:
     image: redis:7-alpine
     container_name: content_engine_redis
@@ -23,5 +10,4 @@ services:
       - redisdata:/data
 
 volumes:
-  pgdata:
   redisdata:
