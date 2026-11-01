@@ -28,7 +28,7 @@ const scriptHandler: StageHandler = async ({ videoId }) => {
     return;
   }
 
-  const result = await generateScript(video.topic.title);
+    const result = await generateScript(video.topic.title, video.topic.summary);
 
   await prisma.video.update({
     where: { id: videoId },
