@@ -16,7 +16,7 @@ const resultSchema = z.object({
 });
 
 export async function scrapeTopics(
-  sources: string[] = ["hackernews", "reddit", "google_trends"],
+    sources: string[] = ["hackernews", "reddit"],
   limit = 20
 ) {
   const raw = await runPython("scrape_topics.py", [
