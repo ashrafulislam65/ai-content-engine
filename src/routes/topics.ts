@@ -11,7 +11,7 @@ const createSchema = z.object({
 
 const listSchema = z.object({
   status: z.enum(["PENDING", "IN_PROGRESS", "USED", "REJECTED"]).optional(),
-  source: z.enum(["GOOGLE_TRENDS", "REDDIT", "HACKER_NEWS", "MANUAL"]).optional(),
+  source: z.enum(["GOOGLE_TRENDS", "REDDIT", "HACKER_NEWS", "DEV_TO", "MANUAL"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
