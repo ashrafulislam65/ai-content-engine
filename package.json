@@ -11,7 +11,8 @@
     "prisma:studio": "prisma studio",
     "dev:worker": "tsx watch src/worker.ts",
     "start:worker": "node dist/worker.js",
-    "test:llm": "tsx src/scripts/test-llm.ts"
+    "test:llm": "tsx src/scripts/test-llm.ts",
+    "test:voice": "tsx src/scripts/test-voice.ts"
   },
   "keywords": [],
   "author": "",
