@@ -14,8 +14,14 @@ const schema = z.object({
     SCRAPE_INTERVAL_MIN: z.coerce.number().int().min(1).default(60),
     GROQ_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
-    GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
-    GEMINI_MODEL: z.string().default("gemini-3.1-flash-lite"),
+      OPENROUTER_API_KEY: z.string().optional(),
+  CEREBRAS_API_KEY: z.string().optional(),
+  MISTRAL_API_KEY: z.string().optional(),
+  LLM_CHAIN: z
+    .string()
+    .default(
+      "groq:openai/gpt-oss-120b,gemini:gemini-3.1-flash-lite,groq:qwen/qwen3.8-27b,gemini:gemini-3-flash-preview"
+    ),
     LLM_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
     PEXELS_API_KEY: z.string().optional(),
 });
