@@ -1,6 +1,7 @@
 import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
 import { generateScript } from "../llm/script";
+import { synthesizeVoice } from "../voice/service";
 import { logStage } from "./service";
 import type { Stage } from "./stages";
 
@@ -28,7 +29,7 @@ const scriptHandler: StageHandler = async ({ videoId }) => {
     return;
   }
 
-    const result = await generateScript(video.topic.title, video.topic.summary);
+  const result = await generateScript(video.topic.title, video.topic.summary);
 
   await prisma.video.update({
     where: { id: videoId },
@@ -41,9 +42,40 @@ const scriptHandler: StageHandler = async ({ videoId }) => {
   await logStage(videoId, "script", "INFO", `Script generated via ${result.provider}`);
 };
 
+const voiceHandler: StageHandler = async ({ videoId }) => {
+  const video = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
+
+  if (!video.scriptText) {
+    throw new Error("No script text yet: the script stage must finish first");
+  }
+
+  // Already done (a later stage failed and we retried): skip
+  if (video.audioPath && video.subtitlePath && video.audioDurationSec) {
+    logger.info({ videoId }, "[voice] already exists, skipping");
+    return;
+  }
+
+  const r = await synthesizeVoice(videoId, video.scriptText);
+
+  await prisma.video.update({
+    where: { id: videoId },
+    data: {
+      audioPath: r.audioPath,
+      subtitlePath: r.subtitlePath,
+      audioDurationSec: r.durationSec,
+    },
+  });
+  await logStage(
+    videoId,
+    "voice",
+    "INFO",
+    `Voice generated (${r.voice}, ${r.boundary} timestamps, ${r.durationSec.toFixed(1)}s)`
+  );
+};
+
 export const handlers: Record<Stage, StageHandler> = {
   script: scriptHandler,
-  voice: placeholder("voice"),
+  voice: voiceHandler,
   assets: placeholder("assets"),
   render: placeholder("render"),
 };
