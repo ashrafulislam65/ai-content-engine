@@ -3,8 +3,11 @@
 
 Uses only the Python standard library, so no pip install is needed.
 Each source is isolated: if one fails, the others still return results.
+Every topic may carry a short "summary" so the script writer is not guessing from a headline.
 """
 import argparse
+import concurrent.futures
+import html
 import json
 import re
 import sys
@@ -13,7 +16,14 @@ import xml.etree.ElementTree as ET
 
 USER_AGENT = "Mozilla/5.0 (compatible; ContentEngineBot/1.0)"
 TIMEOUT_SEC = 15
+PAGE_TIMEOUT_SEC = 6
 REDDIT_SUBS = ["programming", "technology", "webdev", "artificial"]
+
+META_TAG_RE = re.compile(
+    r"<meta\b[^>]*?(?:property|name)\s*=\s*[\"'](?:og:description|description)[\"'][^>]*>",
+    re.I,
+)
+CONTENT_RE = re.compile(r"content\s*=\s*(?:\"([^\"]*)\"|'([^']*)')", re.I)
 
 
 def http_get(url):
@@ -24,6 +34,11 @@ def http_get(url):
 
 def clean_title(title):
     return re.sub(r"\s+", " ", title or "").strip()[:300]
+
+
+def clean_summary(text):
+    text = re.sub(r"<[^>]+>", " ", html.unescape(text or ""))
+    return re.sub(r"\s+", " ", text).strip()[:500]
 
 
 def parse_traffic(text):
@@ -42,6 +57,25 @@ def parse_traffic(text):
         return 0
 
 
+def fetch_description(url):
+    """Best effort: the meta description of a web page. Empty string on any failure."""
+    if not url or not url.startswith(("http://", "https://")):
+        return ""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=PAGE_TIMEOUT_SEC) as res:
+            raw = res.read(150_000).decode("utf-8", errors="replace")
+        for tag in META_TAG_RE.findall(raw):
+            m = CONTENT_RE.search(tag)
+            if m:
+                text = clean_summary(m.group(1) or m.group(2) or "")
+                if text:
+                    return text
+    except Exception:
+        pass
+    return ""
+
+
 def hacker_news(limit, errors):
     url = f"https://hn.algolia.com/api/v1/search?tags=front_page&hitsPerPage={limit}"
     data = json.loads(http_get(url))
@@ -50,13 +84,25 @@ def hacker_news(limit, errors):
         title = clean_title(hit.get("title"))
         if len(title) < 3:
             continue
+        link = hit.get("url")
         out.append({
             "title": title,
             "source": "HACKER_NEWS",
-            "sourceUrl": hit.get("url")
-            or f"https://news.ycombinator.com/item?id={hit.get('objectID')}",
+            "sourceUrl": link or f"https://news.ycombinator.com/item?id={hit.get('objectID')}",
             "score": int(hit.get("points") or 0),
+            "summary": clean_summary(hit.get("story_text")) or None,
+            "_link": link,
         })
+
+    # Link posts have no text: read the page's meta description (in parallel, short timeout)
+    todo = [i for i in out if not i["summary"] and i["_link"]]
+    if todo:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+            descs = pool.map(fetch_description, [i["_link"] for i in todo])
+            for item, desc in zip(todo, descs):
+                item["summary"] = desc or None
+    for item in out:
+        item.pop("_link", None)
     return out
 
 
@@ -77,9 +123,28 @@ def reddit(limit, errors):
                     "source": "REDDIT",
                     "sourceUrl": "https://www.reddit.com" + d.get("permalink", ""),
                     "score": int(d.get("score") or 0),
+                    "summary": clean_summary(d.get("selftext")) or None,
                 })
         except Exception as e:  # one subreddit failing should not kill the rest
             errors.append({"source": f"REDDIT:r/{sub}", "message": str(e)})
+    return out
+
+
+def dev_to(limit, errors):
+    url = f"https://dev.to/api/articles?top=3&per_page={limit}"
+    data = json.loads(http_get(url))
+    out = []
+    for article in data:
+        title = clean_title(article.get("title"))
+        if len(title) < 3:
+            continue
+        out.append({
+            "title": title,
+            "source": "DEV_TO",
+            "sourceUrl": article.get("url"),
+            "score": int(article.get("public_reactions_count") or 0),
+            "summary": clean_summary(article.get("description")) or None,
+        })
     return out
 
 
@@ -103,21 +168,7 @@ def google_trends(limit, errors):
         })
     return out
 
-def dev_to(limit, errors):
-    url = f"https://dev.to/api/articles?top=3&per_page={limit}"
-    data = json.loads(http_get(url))
-    out = []
-    for article in data:
-        title = clean_title(article.get("title"))
-        if len(title) < 3:
-            continue
-        out.append({
-            "title": title,
-            "source": "DEV_TO",
-            "sourceUrl": article.get("url"),
-            "score": int(article.get("public_reactions_count") or 0),
-        })
-    return out
+
 SOURCES = {
     "hackernews": hacker_news,
     "reddit": reddit,
