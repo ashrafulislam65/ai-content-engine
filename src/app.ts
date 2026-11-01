@@ -8,6 +8,7 @@ import { ExpressAdapter } from "@bull-board/express";
 import { env } from "./config/env";
 import { logger } from "./lib/logger";
 import { queues } from "./pipeline/queues";
+import { scrapeQueue } from "./scraper/queue";
 import { healthRouter } from "./routes/health";
 import { topicsRouter } from "./routes/topics";
 import { videosRouter } from "./routes/videos";
@@ -20,7 +21,7 @@ export function createApp() {
   const boardAdapter = new ExpressAdapter();
   boardAdapter.setBasePath("/admin/queues");
   createBullBoard({
-    queues: Object.values(queues).map((q) => new BullMQAdapter(q)),
+    queues: [...Object.values(queues), scrapeQueue].map((q) => new BullMQAdapter(q)),
     serverAdapter: boardAdapter,
   });
   app.use("/admin/queues", boardAdapter.getRouter());
