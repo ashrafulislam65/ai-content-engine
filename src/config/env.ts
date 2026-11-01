@@ -10,6 +10,8 @@ const schema = z.object({
     FRONTEND_ORIGIN: z.string().default("http://localhost:3000"),
     DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
     REDIS_URL: z.string().default("redis://localhost:6380"),
+    PYTHON_BIN: z.string().default("python"),
+    SCRAPE_INTERVAL_MIN: z.coerce.number().int().min(1).default(60),
     GROQ_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
     PEXELS_API_KEY: z.string().optional(),
