@@ -9,6 +9,7 @@ const resultSchema = z.object({
       title: z.string().min(3).max(300),
       source: z.enum(["GOOGLE_TRENDS", "REDDIT", "HACKER_NEWS", "DEV_TO"]),
       sourceUrl: z.string().nullable().optional(),
+      summary: z.string().max(500).nullable().optional(),
       score: z.number().int().default(0),
     })
   ),
@@ -16,15 +17,15 @@ const resultSchema = z.object({
 });
 
 export async function scrapeTopics(
-    sources: string[] = ["hackernews", "devto"],
+  sources: string[] = ["hackernews", "devto"],
   limit = 20
 ) {
-  const raw = await runPython("scrape_topics.py", [
-    "--sources",
-    sources.join(","),
-    "--limit",
-    String(limit),
-  ]);
+  // 90s: fetching page descriptions for HN links takes a few extra seconds
+  const raw = await runPython(
+    "scrape_topics.py",
+    ["--sources", sources.join(","), "--limit", String(limit)],
+    90_000
+  );
   const result = resultSchema.parse(raw);
 
   for (const e of result.errors) {
@@ -37,6 +38,7 @@ export async function scrapeTopics(
       title: t.title,
       source: t.source,
       sourceUrl: t.sourceUrl ?? null,
+      summary: t.summary ?? null,
       score: t.score,
     })),
     skipDuplicates: true,
