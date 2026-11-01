@@ -40,16 +40,23 @@ function extractJson(text: string): unknown {
   return JSON.parse(start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned);
 }
 
-// The text goes to a TTS engine: strip emojis and markdown leftovers.
+// The text goes to a TTS engine. Replace (not delete) odd characters with a space,
+// otherwise neighbouring words get glued together ("follow" + emoji + "for" = "followfor").
 function cleanSpokenText(text: string): string {
   return text
-    .replace(/\p{Extended_Pictographic}/gu, "")
-    .replace(/[*_#`]/g, "")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g, " ")
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\p{Extended_Pictographic}/gu, " ")
+    .replace(/[*_#`]/g, " ")
     .replace(/\s+/g, " ")
+    .replace(/\s+([.,!?;:])/g, "$1")
     .trim();
 }
 
-export async function generateScript(topicTitle: string) {
+export async function generateScript(topicTitle: string, summary?: string | null) {
   const chain = parseChain();
   if (chain.length === 0) {
     throw new Error("No usable model in LLM_CHAIN. Check API keys and LLM_CHAIN in .env");
@@ -67,7 +74,12 @@ export async function generateScript(topicTitle: string) {
 
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        const raw = await callModel(item.provider, item.model, SYSTEM_PROMPT, buildUserPrompt(topicTitle));
+        const raw = await callModel(
+          item.provider,
+          item.model,
+          SYSTEM_PROMPT,
+          buildUserPrompt(topicTitle, summary)
+        );
         const parsed = scriptSchema.parse(extractJson(raw));
         return {
           title: parsed.title,
