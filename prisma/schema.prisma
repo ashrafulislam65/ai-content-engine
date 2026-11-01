@@ -46,6 +46,7 @@ enum LogLevel {
 model Topic {
   id        String      @id @default(cuid())
   title     String
+  summary   String?
   source    TopicSource
   sourceUrl String?
   score     Int         @default(0)
