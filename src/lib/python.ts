@@ -4,18 +4,22 @@ import { env } from "../config/env";
 
 /**
  * Runs workers/<script> with python and returns its stdout parsed as JSON.
+ * `input` (optional) is sent to the script on stdin as UTF-8, which avoids
+ * Windows command-line quoting problems for long texts.
  * Must be started from the backend folder (npm scripts do this).
  */
 export function runPython<T = unknown>(
   script: string,
   args: string[] = [],
-  timeoutMs = 60_000
+  timeoutMs = 60_000,
+  input?: string
 ): Promise<T> {
   const scriptPath = path.resolve(process.cwd(), "workers", script);
 
   return new Promise<T>((resolve, reject) => {
     const child = spawn(env.PYTHON_BIN, [scriptPath, ...args], {
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
+      env: { ...process.env, PYTHONUTF8: "1" },
     });
 
     let stdout = "";
@@ -28,6 +32,9 @@ export function runPython<T = unknown>(
 
     child.stdout.on("data", (chunk) => (stdout += chunk));
     child.stderr.on("data", (chunk) => (stderr += chunk));
+
+    child.stdin.on("error", () => {}); // python may exit before reading stdin
+    child.stdin.end(input ?? "");
 
     child.on("error", (err) => {
       clearTimeout(timer);
