@@ -103,17 +103,32 @@ def google_trends(limit, errors):
         })
     return out
 
-
+def dev_to(limit, errors):
+    url = f"https://dev.to/api/articles?top=3&per_page={limit}"
+    data = json.loads(http_get(url))
+    out = []
+    for article in data:
+        title = clean_title(article.get("title"))
+        if len(title) < 3:
+            continue
+        out.append({
+            "title": title,
+            "source": "DEV_TO",
+            "sourceUrl": article.get("url"),
+            "score": int(article.get("public_reactions_count") or 0),
+        })
+    return out
 SOURCES = {
     "hackernews": hacker_news,
     "reddit": reddit,
+    "devto": dev_to,
     "google_trends": google_trends,
 }
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--sources", default="hackernews,reddit,google_trends")
+    parser.add_argument("--sources", default="hackernews,devto")
     parser.add_argument("--limit", type=int, default=20)
     args = parser.parse_args()
 
