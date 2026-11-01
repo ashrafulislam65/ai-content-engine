@@ -7,7 +7,7 @@ const resultSchema = z.object({
   topics: z.array(
     z.object({
       title: z.string().min(3).max(300),
-      source: z.enum(["GOOGLE_TRENDS", "REDDIT", "HACKER_NEWS"]),
+      source: z.enum(["GOOGLE_TRENDS", "REDDIT", "HACKER_NEWS", "DEV_TO"]),
       sourceUrl: z.string().nullable().optional(),
       score: z.number().int().default(0),
     })
@@ -16,7 +16,7 @@ const resultSchema = z.object({
 });
 
 export async function scrapeTopics(
-    sources: string[] = ["hackernews", "reddit"],
+    sources: string[] = ["hackernews", "devto"],
   limit = 20
 ) {
   const raw = await runPython("scrape_topics.py", [
