@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+import { assetsStillValid, fetchAssets } from "../assets/service";
 import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
 import { generateScript } from "../llm/script";
@@ -73,9 +75,36 @@ const voiceHandler: StageHandler = async ({ videoId }) => {
   );
 };
 
+const assetsHandler: StageHandler = async ({ videoId }) => {
+  const video = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
+
+  if (!video.audioDurationSec || video.visualKeywords.length === 0) {
+    throw new Error("Need the audio duration and visual keywords: the script and voice stages must finish first");
+  }
+
+  // Already downloaded (a later stage failed and we retried): skip
+  if (await assetsStillValid(video.assets)) {
+    logger.info({ videoId }, "[assets] already exist, skipping");
+    return;
+  }
+
+  const r = await fetchAssets(videoId, video.visualKeywords, video.audioDurationSec);
+
+  await prisma.video.update({
+    where: { id: videoId },
+    data: { assets: r.clips as unknown as Prisma.InputJsonValue },
+  });
+  await logStage(
+    videoId,
+    "assets",
+    "INFO",
+    `Downloaded ${r.clips.length} clips (${r.fallbacks} via fallback search)`
+  );
+};
+
 export const handlers: Record<Stage, StageHandler> = {
   script: scriptHandler,
   voice: voiceHandler,
-  assets: placeholder("assets"),
+  assets: assetsHandler,
   render: placeholder("render"),
 };
