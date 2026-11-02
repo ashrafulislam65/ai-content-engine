@@ -26,6 +26,8 @@ const schema = z.object({
   STORAGE_DIR: z.string().default("storage"),
   TTS_VOICE: z.string().default("en-US-AndrewNeural"),
   TTS_RATE: z.string().default("+0%"),
+  PIXABAY_API_KEY: z.string().optional(),
+  PIXABAY_API_URL: z.string().default("https://pixabay.com"),
     PEXELS_API_KEY: z.string().optional(),
 });
 
