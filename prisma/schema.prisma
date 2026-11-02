@@ -69,6 +69,7 @@ model Video {
   audioPath        String?
   audioDurationSec Float?
   subtitlePath     String?
+  assets           Json?
   videoPath        String?
   failedStage      VideoStatus?
   errorMessage     String?
