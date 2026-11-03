@@ -1,23 +1,17 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import type { Prisma } from "@prisma/client";
 import { assetsStillValid, fetchAssets } from "../assets/service";
 import { logger } from "../lib/logger";
 import { prisma } from "../lib/prisma";
 import { generateScript } from "../llm/script";
+import { parseClips, renderVideo } from "../render/service";
 import { synthesizeVoice } from "../voice/service";
 import { logStage } from "./service";
 import type { Stage } from "./stages";
 
 export type StageContext = { videoId: string };
 export type StageHandler = (ctx: StageContext) => Promise<void>;
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-function placeholder(label: string): StageHandler {
-  return async ({ videoId }) => {
-    logger.info({ videoId }, `[${label}] placeholder running`);
-    await sleep(1500);
-  };
-}
 
 const scriptHandler: StageHandler = async ({ videoId }) => {
   const video = await prisma.video.findUniqueOrThrow({
@@ -102,9 +96,52 @@ const assetsHandler: StageHandler = async ({ videoId }) => {
   );
 };
 
+const renderHandler: StageHandler = async ({ videoId }) => {
+  const video = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
+
+  if (!video.audioPath || !video.subtitlePath || !video.audioDurationSec) {
+    throw new Error("Need the voice files first: the voice stage must finish before rendering");
+  }
+  const clips = parseClips(video.assets);
+  if (clips.length === 0) {
+    throw new Error("Need the downloaded clips first: the assets stage must finish before rendering");
+  }
+
+  // Already rendered (a retry after a later failure): skip
+  if (video.videoPath) {
+    const exists = await fs
+      .access(path.resolve(process.cwd(), video.videoPath))
+      .then(() => true, () => false);
+    if (exists) {
+      logger.info({ videoId }, "[render] already exists, skipping");
+      return;
+    }
+  }
+
+  const r = await renderVideo({
+    videoId,
+    audioPath: video.audioPath,
+    subtitlePath: video.subtitlePath,
+    audioDurationSec: video.audioDurationSec,
+    clips,
+  });
+
+  await prisma.video.update({
+    where: { id: videoId },
+    data: { videoPath: r.videoPath },
+  });
+  await logStage(
+    videoId,
+    "render",
+    "INFO",
+    `Rendered ${r.durationSec.toFixed(1)}s video, ${(r.sizeBytes / 1_048_576).toFixed(1)} MB`,
+    r.tookMs
+  );
+};
+
 export const handlers: Record<Stage, StageHandler> = {
   script: scriptHandler,
   voice: voiceHandler,
   assets: assetsHandler,
-  render: placeholder("render"),
+  render: renderHandler,
 };
