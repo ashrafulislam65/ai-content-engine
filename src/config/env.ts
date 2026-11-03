@@ -28,6 +28,9 @@ const schema = z.object({
   TTS_RATE: z.string().default("+0%"),
   PIXABAY_API_KEY: z.string().optional(),
   PIXABAY_API_URL: z.string().default("https://pixabay.com"),
+  FFMPEG_BIN: z.string().default("ffmpeg"),
+  FFPROBE_BIN: z.string().default("ffprobe"),
+  SUBTITLE_FONT: z.string().default("Arial"),
     PEXELS_API_KEY: z.string().optional(),
 });
 
