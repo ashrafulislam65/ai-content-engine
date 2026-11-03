@@ -13,7 +13,8 @@
     "start:worker": "node dist/worker.js",
     "test:llm": "tsx src/scripts/test-llm.ts",
     "test:voice": "tsx src/scripts/test-voice.ts",
-    "test:assets": "tsx src/scripts/test-assets.ts"
+    "test:assets": "tsx src/scripts/test-assets.ts",
+    "test:render": "tsx src/scripts/test-render.ts"
   },
   "keywords": [],
   "author": "",
