@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { AppError } from "../middleware/errorHandler";
 import { scrapeQueue } from "../scraper/queue";
 
 export const topicsRouter = Router();
@@ -39,4 +40,16 @@ topicsRouter.get("/", async (req, res) => {
 topicsRouter.post("/scrape", async (_req, res) => {
   await scrapeQueue.add("scrape-now", {});
   res.status(202).json({ queued: true });
+});
+
+// "Not interested in this topic": only a topic that is still waiting can be rejected
+topicsRouter.post("/:id/reject", async (req, res) => {
+  const result = await prisma.topic.updateMany({
+    where: { id: req.params.id, status: "PENDING" },
+    data: { status: "REJECTED" },
+  });
+  if (result.count === 0) {
+    throw new AppError(409, "Only a topic that is still PENDING can be rejected");
+  }
+  res.json({ ok: true });
 });
